@@ -8,19 +8,9 @@ ui <-
       tabPanel(
         "Übersicht",
         fluidRow(
-          # column(
-          #   6,
-          #   h3("Aktuelle Salden"),
-          #   verbatimTextOutput("saldoCash", ),
-          #   verbatimTextOutput("saldoBank")
-          # ),
           column(
             6,
             h3("Export / Sicherung"),
-            # dateInput("compareDate1", "Beginndatum", Sys.Date() - 365),
-            # dateInput("compareDate2", "Endedatum", Sys.Date()),
-            # downloadButton("downloadExcel", "Berichte herunterladen (Excel)"),
-            # br(),
             downloadButton("backupData", "Daten sichern"),
             fileInput(
               "restoreFile",
@@ -28,17 +18,7 @@ ui <-
               accept = c(".xlsx")
             )
           )
-        ) #,
-        # fluidRow(
-        #   column(12, h3("Auswertung nach Themen"), DTOutput("topicTable"))
-        # ),
-        # fluidRow(
-        #   column(
-        #     12,
-        #     h3("Auswertung nach Typ (Bar / Bank)"),
-        #     DTOutput("typeTable")
-        #   )
-        # )
+        )
       ),
       tabPanel(
         "Buchung hinzufügen",
@@ -64,17 +44,16 @@ ui <-
         DTOutput("accountList")
       ),
       tabPanel(
-        "Abrechnung erstellen",
+        "Anlass abrechnen",
+        uiOutput("topicSelectReport"),
+        DTOutput("reportTable")
+      ),
+      tabPanel(
+        "Kontoauszug erstellen",
         dateInput("startDate", "Beginndatum", Sys.Date() - 365),
         dateInput("endDate", "Enddatum", Sys.Date()),
-        uiOutput("topicSelectReport"),
         uiOutput("accountSelectReport"),
-        downloadButton("downloadReport", "Abrechnung herunterladen (Excel"),
-        DTOutput("reportTable")
-      )
+        DTOutput("statementsTable")
+      ),
     )
   )
-
-# dateInput("compareDate1", "Beginndatum", Sys.Date() - 365),
-# dateInput("compareDate2", "Endedatum", Sys.Date()),
-# downloadButton("downloadExcel", "Berichte herunterladen (Excel)"),

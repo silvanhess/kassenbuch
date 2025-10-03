@@ -210,81 +210,6 @@ server <- function(input, output, session) {
 
   output$transTable <- renderDT(transactions())
 
-  # # ---- Summaries ----
-  # topicSummary <- reactive({
-  #   req(nrow(transactions()) > 0)
-  #   transactions() %>%
-  #     group_by(Topic) %>%
-  #     summarise(
-  #       Earnings = sum(Amount[Amount > 0]),
-  #       Expenses = -sum(Amount[Amount < 0]),
-  #       ProfitLoss = sum(Amount)
-  #     )
-  # })
-
-  # typeSummary <- reactive({
-  #   req(nrow(transactions()) > 0)
-  #   transactions() %>%
-  #     group_by(Type) %>%
-  #     summarise(
-  #       Earnings = sum(Amount[Amount > 0]),
-  #       Expenses = -sum(Amount[Amount < 0]),
-  #       ProfitLoss = sum(Amount)
-  #     )
-  # })
-
-  # output$topicTable <- renderDT(topicSummary())
-  # output$typeTable <- renderDT(typeSummary())
-
-  # # ---- Dashboard balances ----
-  # output$saldoCash <- renderText({
-  #   cashBal <- input$startCash +
-  #     sum(transactions()$Amount[transactions()$Type == "Cash"])
-  #   paste("Bargeldstand:", cashBal)
-  # })
-
-  # output$saldoBank <- renderText({
-  #   bankBal <- input$startBank +
-  #     sum(transactions()$Amount[transactions()$Type == "Bank"])
-  #   paste("Kontostand:", bankBal)
-  # })
-
-  # # ---- Balance comparison function ----
-  # balanceAtDate <- function(date) {
-  #   df <- transactions() %>% filter(Date <= date)
-  #   cash <- input$startCash + sum(df$Amount[df$Type == "Cash"])
-  #   bank <- input$startBank + sum(df$Amount[df$Type == "Bank"])
-  #   data.frame(Date = as.Date(date), Cash = cash, Bank = bank)
-  # }
-
-  # # ---- Export Statements Excel ----
-  # output$downloadExcel <- downloadHandler(
-  #   filename = function() {
-  #     paste0("finance_statements_", Sys.Date(), ".xlsx")
-  #   },
-  #   content = function(file) {
-  #     wb <- createWorkbook()
-
-  #     addWorksheet(wb, "Transactions")
-  #     writeData(wb, "Transactions", transactions())
-
-  #     addWorksheet(wb, "By Topic")
-  #     writeData(wb, "By Topic", topicSummary())
-
-  #     addWorksheet(wb, "By Type")
-  #     writeData(wb, "By Type", typeSummary())
-
-  #     addWorksheet(wb, "Balance Comparison")
-  #     balanceData <- rbind(
-  #       balanceAtDate(input$compareDate1),
-  #       balanceAtDate(input$compareDate2)
-  #     )
-  #     writeData(wb, "Balance Comparison", balanceData)
-
-  #     saveWorkbook(wb, file, overwrite = TRUE)
-  #   }
-  # )
-
   # ---- Backup data ----
   output$backupData <- downloadHandler(
     filename = function() {
@@ -306,5 +231,57 @@ server <- function(input, output, session) {
     transactions(restored$transactions)
   })
 
-  # ---- Create Reports ----
+  # ---- Topic Report ----
+  output$topicSelectReport <- renderUI({
+    req(topics())
+
+    valid_topics <- topics() %>%
+      filter(Anlass != "Anfangssaldo") %>%
+      pull(Anlass)
+
+    selectInput(
+      "topicReport",
+      "Anlass:",
+      choices = valid_topics
+    )
+  })
+
+  reportData <- reactive({
+    req(transactions(), input$topicReport)
+
+    transactions() %>%
+      filter(Anlass == input$topicReport) %>%
+      arrange(desc(Betrag))
+  })
+
+  output$reportTable <- renderDT({
+    reportData()
+  })
+
+  # ---- Account Statements ----
+  output$accountSelectReport <- renderUI({
+    req(accounts())
+    selectInput(
+      "accountReport",
+      "Konto:",
+      choices = accounts()$Konto
+    )
+  })
+
+  reportData <- reactive({
+    req(transactions(), input$accountReport)
+
+    transactions() %>%
+      filter(
+        Datum >= input$startDate,
+        Datum <= input$endDate,
+        Konto == input$accountReport
+      ) %>%
+      arrange(asc(Datum))
+  })
+
+  # ---- Show in DT ----
+  output$statementsTable <- renderDT({
+    reportData()
+  })
 }
