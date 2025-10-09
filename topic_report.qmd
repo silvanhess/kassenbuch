@@ -1,0 +1,56 @@
+---
+title: "Themenbericht"
+format: pdf
+params:
+  topic: "All Topics"
+  transactions: !expr data.frame()
+---
+
+```{r}
+library(dplyr)
+library(knitr)
+
+# Filter by topic
+df <- params$transactions
+if (params$topic != "Alle Themen") {
+  df <- df %>% filter(Anlass == params$topic)
+}
+
+# Split Einnahmen/Ausgaben
+income <- df %>% filter(Betrag > 0)
+expenses <- df %>% filter(Betrag < 0)
+
+total_income <- sum(income$Betrag, na.rm = TRUE)
+total_expenses <- sum(abs(expenses$Betrag), na.rm = TRUE)
+profit <- total_income - total_expenses
+```
+
+# Abrechnung `{r} params$topic` 
+
+## Einnahmen
+
+```{r}
+if (nrow(income) > 0) {
+  kable(income %>% select(Datum, Bemerkung, Betrag), align = "l l r", caption = "Einnahmen")
+} else {
+  cat("Keine Einnahmen gefunden.\n")
+}
+```
+
+## Ausgaben
+
+```{r}
+if (nrow(expenses) > 0) {
+  kable(expenses %>% select(Datum, Bemerkung, Betrag), align = "l l r", caption = "Ausgaben")
+} else {
+  cat("Keine Ausgaben gefunden.\n")
+}
+```
+
+## Zusammenfassung
+
+```{r}
+cat(sprintf("**Total Einnahmen:** %.2f €\n\n", total_income))
+cat(sprintf("**Total Ausgaben:** %.2f €\n\n", total_expenses))
+cat(sprintf("**Gewinn/Verlust:** %.2f €", profit))
+```

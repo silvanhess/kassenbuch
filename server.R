@@ -2,7 +2,9 @@ library(shiny)
 library(DT)
 library(dplyr)
 library(tidyr)
+library(lubridate)
 library(openxlsx)
+library(readxl)
 
 # Hauptdatei für Daten
 data_file <- "finance_data.xlsx"
@@ -14,29 +16,33 @@ server <- function(input, output, session) {
       sheets <- getSheetNames(data_file)
 
       if ("Anlässe" %in% sheets) {
-        topics_data <- read.xlsx(data_file, sheet = "Anlässe")
+        topics_data <- read_excel(data_file, sheet = "Anlässe")
       } else {
-        topics_data <- data.frame(
+        topics_data <- tibble(
           Anlass = character(),
           stringsAsFactors = FALSE
         )
       }
 
       if ("Konten" %in% sheets) {
-        accounts_data <- read.xlsx(data_file, sheet = "Konten")
+        accounts_data <- read_excel(data_file, sheet = "Konten")
       } else {
-        accounts_data <- data.frame(
+        accounts_data <- tibble(
           Konto = character(),
           stringsAsFactors = FALSE
         )
       }
 
       if ("Buchungen" %in% sheets) {
-        trans_data <- read.xlsx(data_file, sheet = "Buchungen")
-        trans_data$Datum <- as.Date(trans_data$Datum)
+        trans_data <- read_excel(
+          data_file,
+          sheet = "Buchungen",
+          detectDates = TRUE
+        )
+        trans_data$Datum <- as_date(trans_data$Datum, origin = "1899-12-30")
       } else {
-        trans_data <- data.frame(
-          Datum = as.Date(character()),
+        trans_data <- tibble(
+          Datum = as_date(character()),
           Betrag = numeric(),
           Bemerkung = character(),
           Konto = character(),
@@ -45,16 +51,16 @@ server <- function(input, output, session) {
         )
       }
     } else {
-      topics_data <- data.frame(
+      topics_data <- tibble(
         Anlass = character(),
         stringsAsFactors = FALSE
       )
-      accounts_data <- data.frame(
+      accounts_data <- tibble(
         Konto = character(),
         stringsAsFactors = FALSE
       )
-      trans_data <- data.frame(
-        Datum = as.Date(character()),
+      trans_data <- tibble(
+        Datum = as_date(character()),
         Betrag = numeric(),
         Bemerkung = character(),
         Konto = character(),
@@ -75,6 +81,9 @@ server <- function(input, output, session) {
   accounts <- reactiveVal(init_data$accounts)
   transactions <- reactiveVal(init_data$transactions)
 
+  print(str(init_data$transaction))
+  print(class(init_data$transactions$Datum))
+
   # ---- Save everything back into Excel workbook ----
   save_data <- function() {
     wb <- createWorkbook()
@@ -90,6 +99,50 @@ server <- function(input, output, session) {
     saveWorkbook(wb, data_file, overwrite = TRUE)
   }
 
+  # ---- Generate Topic Report ----
+
+  output$topicSelectReport <- renderUI({
+    selectInput("topicReport", "Anlass:", choices = topics()$Anlass)
+  })
+
+  observeEvent(input$generateTopicReport, {
+    tmpfile <- "topic_report.pdf"
+
+    quarto::quarto_render(
+      input = "topic_report.qmd",
+      output_file = tmpfile,
+      execute_params = list(
+        topic = input$topicReport,
+        transactions = transactions()
+      )
+    )
+
+    browseURL(tmpfile)
+  })
+
+  # ---- Generate Account Statement ----
+
+  output$accountSelectReport <- renderUI({
+    selectInput("accountReport", "Konto:", choices = accounts()$Konto)
+  })
+
+  observeEvent(input$generateAccountReport, {
+    tmpfile <- "account_statement.pdf"
+
+    quarto::quarto_render(
+      input = "account_statement.qmd",
+      output_file = tmpfile,
+      execute_params = list(
+        account = input$accountReport,
+        startDate = input$startDate,
+        endDate = input$endDate,
+        transactions = transactions()
+      )
+    )
+
+    browseURL(tmpfile)
+  })
+
   # ---- Manage Topics ----
   observeEvent(input$addTopic, {
     if (input$newTopic != "") {
@@ -98,12 +151,64 @@ server <- function(input, output, session) {
       if (!already_exists) {
         newdf <- rbind(
           topics(),
-          data.frame(Anlass = input$newTopic)
+          tibble(Anlass = input$newTopic)
         )
         topics(newdf)
         save_data()
       }
     }
+  })
+
+  # ---- Delete Topic ----
+  observeEvent(input$deleteTopic, {
+    sel <- input$topicList_rows_selected
+    req(sel)
+
+    df_topics <- topics()
+    df_trans <- transactions()
+
+    topic_to_delete <- df_topics$Anlass[sel]
+
+    # Check if the topic exists in transactions
+    used_in_trans <- topic_to_delete %in% df_trans$Anlass
+
+    # Check if it is the last remaining topic
+    last_topic <- nrow(df_topics) == 1
+
+    if (used_in_trans) {
+      showNotification(
+        paste(
+          "Der Anlass",
+          topic_to_delete,
+          "wird in Buchungen verwendet und kann nicht gelöscht werden."
+        ),
+        type = "error"
+      )
+    } else if (last_topic) {
+      showNotification(
+        print("Es muss immer mindestens ein Konto vorhanden sein."),
+        type = "error"
+      )
+    } else {
+      newdf <- df_topics[-sel, ]
+      topics(newdf)
+      save_data()
+      showNotification(
+        paste("Anlass", topic_to_delete, "wurde gelöscht."),
+        type = "message"
+      )
+    }
+  })
+
+  # ---- Edit Topic ----
+  observeEvent(input$editTopic, {
+    sel <- input$topicList_rows_selected
+    req(sel, input$editTopicName)
+
+    df <- topics()
+    df$Anlass[sel] <- input$editTopicName
+    topics(df)
+    save_data()
   })
 
   topicSummary <- reactive({
@@ -126,7 +231,10 @@ server <- function(input, output, session) {
     result
   })
 
-  output$topicList <- renderDT(topicSummary(), options = list(dom = 't'))
+  output$topicList <- renderDT(
+    topicSummary(),
+    options = list(dom = 't')
+  )
 
   # ---- Manage Accounts ----
   observeEvent(input$addAccount, {
@@ -137,13 +245,13 @@ server <- function(input, output, session) {
         # add account
         newdf <- rbind(
           accounts(),
-          data.frame(Konto = input$newAccount)
+          tibble(Konto = input$newAccount)
         )
         accounts(newdf)
 
         # add starting balance as a booking if != 0
         if (input$startBalance != 0) {
-          newTrans <- data.frame(
+          newTrans <- tibble(
             Datum = Sys.Date(),
             Betrag = input$startBalance,
             Bemerkung = "Initialbuchung",
@@ -156,6 +264,58 @@ server <- function(input, output, session) {
         save_data()
       }
     }
+  })
+
+  # ---- Delete Account ----
+  observeEvent(input$deleteAccount, {
+    sel <- input$accountList_rows_selected
+    req(sel)
+
+    df_accounts <- accounts()
+    df_trans <- transactions()
+
+    account_to_delete <- df_accounts$Konto[sel]
+
+    # Check if the account exists in transactions
+    used_in_trans <- account_to_delete %in% df_trans$Konto
+
+    # Check if this is the last remaining account
+    last_account <- nrow(df_accounts) == 1
+
+    if (used_in_trans) {
+      showNotification(
+        paste(
+          "Das Konto",
+          account_to_delete,
+          "wird in Buchungen verwendet und kann nicht gelöscht werden."
+        ),
+        type = "error"
+      )
+    } else if (last_acount) {
+      showNotification(
+        print("Es muss immer mindestens ein Konto vorhanden sein."),
+        type = "error"
+      )
+    } else {
+      newdf <- df_accounts[-sel, ]
+      accounts(newdf)
+      save_data()
+      showNotification(
+        paste("Konto", account_to_delete, "wurde gelöscht."),
+        type = "message"
+      )
+    }
+  })
+
+  # ---- Edit Account ----
+  observeEvent(input$editAccount, {
+    sel <- input$accountList_rows_selected
+    req(sel, input$editAccountName)
+
+    df <- accounts()
+    df$Konto[sel] <- input$editAccountName
+    accounts(df)
+    save_data()
   })
 
   accountSummary <- reactive({
@@ -195,7 +355,7 @@ server <- function(input, output, session) {
     if (!is.null(input$topic) && !is.null(input$account) && input$amount != 0) {
       newdf <- rbind(
         transactions(),
-        data.frame(
+        tibble(
           Datum = input$date,
           Betrag = input$amount,
           Bemerkung = input$note,
@@ -206,6 +366,34 @@ server <- function(input, output, session) {
       transactions(newdf)
       save_data()
     }
+  })
+
+  # ---- Delete Transaction ----
+  observeEvent(input$deleteTrans, {
+    sel <- input$transTable_rows_selected
+    req(sel)
+    newdf <- transactions()[-sel, ]
+    transactions(newdf)
+    save_data()
+  })
+
+  # ---- Edit Transaction ----
+  observeEvent(input$editTrans, {
+    sel <- input$transTable_rows_selected
+    req(sel)
+
+    df <- transactions()
+
+    # Only edit note and amount (could be extended to Konto/Anlass)
+    if (input$editNote != "") {
+      df$Bemerkung[sel] <- input$editNote
+    }
+    if (input$editAmount != 0) {
+      df$Betrag[sel] <- input$editAmount
+    }
+
+    transactions(df)
+    save_data()
   })
 
   output$transTable <- renderDT(transactions())
@@ -231,57 +419,55 @@ server <- function(input, output, session) {
     transactions(restored$transactions)
   })
 
-  # ---- Topic Report ----
-  output$topicSelectReport <- renderUI({
-    req(topics())
+  # ---- Reset all data ----
+  observeEvent(input$resetData, {
+    showModal(modalDialog(
+      title = "Bestätigung erforderlich",
+      "Möchten Sie wirklich alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      footer = tagList(
+        modalButton("Abbrechen"),
+        actionButton("confirmReset", "Ja, alles löschen", class = "btn-danger")
+      )
+    ))
+  })
 
-    valid_topics <- topics() %>%
-      filter(Anlass != "Anfangssaldo") %>%
-      pull(Anlass)
+  # ---- Confirm reset ----
+  observeEvent(input$confirmReset, {
+    removeModal() # close confirmation dialog
 
-    selectInput(
-      "topicReport",
-      "Anlass:",
-      choices = valid_topics
+    # Empty data frames
+    empty_topics <- tibble(Anlass = character(), stringsAsFactors = FALSE)
+    empty_accounts <- tibble(Konto = character(), stringsAsFactors = FALSE)
+    empty_trans <- tibble(
+      Datum = as_date(character()),
+      Betrag = numeric(),
+      Bemerkung = character(),
+      Konto = character(),
+      Anlass = character(),
+      stringsAsFactors = FALSE
     )
-  })
 
-  reportData <- reactive({
-    req(transactions(), input$topicReport)
+    # Reset reactive values
+    topics(empty_topics)
+    accounts(empty_accounts)
+    transactions(empty_trans)
 
-    transactions() %>%
-      filter(Anlass == input$topicReport) %>%
-      arrange(desc(Betrag))
-  })
+    # Save empty workbook
+    wb <- createWorkbook()
+    addWorksheet(wb, "Anlässe")
+    writeData(wb, "Anlässe", empty_topics)
 
-  output$reportTable <- renderDT({
-    reportData()
-  })
+    addWorksheet(wb, "Konten")
+    writeData(wb, "Konten", empty_accounts)
 
-  # ---- Account Statements ----
-  output$accountSelectReport <- renderUI({
-    req(accounts())
-    selectInput(
-      "accountReport",
-      "Konto:",
-      choices = accounts()$Konto
+    addWorksheet(wb, "Buchungen")
+    writeData(wb, "Buchungen", empty_trans)
+
+    saveWorkbook(wb, data_file, overwrite = TRUE)
+
+    showNotification(
+      "Alle Daten wurden gelöscht und das Dashboard wurde zurückgesetzt.",
+      type = "message"
     )
-  })
-
-  reportData <- reactive({
-    req(transactions(), input$accountReport)
-
-    transactions() %>%
-      filter(
-        Datum >= input$startDate,
-        Datum <= input$endDate,
-        Konto == input$accountReport
-      ) %>%
-      arrange(asc(Datum))
-  })
-
-  # ---- Show in DT ----
-  output$statementsTable <- renderDT({
-    reportData()
   })
 }
