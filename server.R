@@ -46,26 +46,22 @@ server <- function(input, output, session) {
           Betrag = numeric(),
           Bemerkung = character(),
           Konto = character(),
-          Anlass = character(),
-          stringsAsFactors = FALSE
+          Anlass = character()
         )
       }
     } else {
       topics_data <- tibble(
-        Anlass = character(),
-        stringsAsFactors = FALSE
+        Anlass = character()
       )
       accounts_data <- tibble(
-        Konto = character(),
-        stringsAsFactors = FALSE
+        Konto = character()
       )
       trans_data <- tibble(
         Datum = as_date(character()),
         Betrag = numeric(),
         Bemerkung = character(),
         Konto = character(),
-        Anlass = character(),
-        stringsAsFactors = FALSE
+        Anlass = character()
       )
     }
     list(
@@ -120,28 +116,28 @@ server <- function(input, output, session) {
     browseURL(tmpfile)
   })
 
-  # ---- Generate Account Statement ----
+  # # ---- Generate Account Statement ----
 
-  output$accountSelectReport <- renderUI({
-    selectInput("accountReport", "Konto:", choices = accounts()$Konto)
-  })
+  # output$accountSelectReport <- renderUI({
+  #   selectInput("accountReport", "Konto:", choices = accounts()$Konto)
+  # })
 
-  observeEvent(input$generateAccountReport, {
-    tmpfile <- "account_statement.pdf"
+  # observeEvent(input$generateAccountReport, {
+  #   tmpfile <- "account_statement.pdf"
 
-    quarto::quarto_render(
-      input = "account_statement.qmd",
-      output_file = tmpfile,
-      execute_params = list(
-        account = input$accountReport,
-        startDate = input$startDate,
-        endDate = input$endDate,
-        transactions = transactions()
-      )
-    )
+  #   quarto::quarto_render(
+  #     input = "account_statement.qmd",
+  #     output_file = tmpfile,
+  #     execute_params = list(
+  #       account = input$accountReport,
+  #       startDate = input$startDate,
+  #       endDate = input$endDate,
+  #       transactions = transactions()
+  #     )
+  #   )
 
-    browseURL(tmpfile)
-  })
+  #   browseURL(tmpfile)
+  # })
 
   # ---- Manage Topics ----
   observeEvent(input$addTopic, {
