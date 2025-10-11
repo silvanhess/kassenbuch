@@ -18,7 +18,7 @@ server <- function(input, output, session) {
       if ("Anlässe" %in% sheets) {
         topics_data <- read_excel(data_file, sheet = "Anlässe")
       } else {
-        topics_data <- tibble(
+        topics_data <- data.frame(
           Anlass = character(),
           stringsAsFactors = FALSE
         )
@@ -27,7 +27,7 @@ server <- function(input, output, session) {
       if ("Konten" %in% sheets) {
         accounts_data <- read_excel(data_file, sheet = "Konten")
       } else {
-        accounts_data <- tibble(
+        accounts_data <- data.frame(
           Konto = character(),
           stringsAsFactors = FALSE
         )
@@ -36,12 +36,11 @@ server <- function(input, output, session) {
       if ("Buchungen" %in% sheets) {
         trans_data <- read_excel(
           data_file,
-          sheet = "Buchungen",
-          detectDates = TRUE
+          sheet = "Buchungen"
         )
-        trans_data$Datum <- as_date(trans_data$Datum, origin = "1899-12-30")
+        trans_data$Datum <- as.Date(trans_data$Datum, origin = "1899-12-30")
       } else {
-        trans_data <- tibble(
+        trans_data <- data.frame(
           Datum = as_date(character()),
           Betrag = numeric(),
           Bemerkung = character(),
@@ -50,18 +49,21 @@ server <- function(input, output, session) {
         )
       }
     } else {
-      topics_data <- tibble(
-        Anlass = character()
+      topics_data <- data.frame(
+        Anlass = character(),
+        stringsAsFactors = FALSE
       )
-      accounts_data <- tibble(
-        Konto = character()
+      accounts_data <- data.frame(
+        Konto = character(),
+        stringsAsFactors = FALSE
       )
-      trans_data <- tibble(
+      trans_data <- data.frame(
         Datum = as_date(character()),
         Betrag = numeric(),
         Bemerkung = character(),
         Konto = character(),
-        Anlass = character()
+        Anlass = character(),
+        stringsAsFactors = FALSE
       )
     }
     list(
@@ -77,7 +79,7 @@ server <- function(input, output, session) {
   accounts <- reactiveVal(init_data$accounts)
   transactions <- reactiveVal(init_data$transactions)
 
-  print(str(init_data$transaction))
+  print(str(init_data$transactions))
   print(class(init_data$transactions$Datum))
 
   # ---- Save everything back into Excel workbook ----
@@ -95,28 +97,59 @@ server <- function(input, output, session) {
     saveWorkbook(wb, data_file, overwrite = TRUE)
   }
 
-  # ---- Generate Topic Report ----
+  # ---- Backup data ----
+  output$backupData <- downloadHandler(
+    filename = function() {
+      paste0("backup_", Sys.Date(), ".xlsx")
+    },
+    content = function(file) {
+      file.copy(data_file, file, overwrite = TRUE)
+    }
+  )
 
+  # ---- Restore data ----
+  observeEvent(input$restoreFile, {
+    req(input$restoreFile)
+    file.copy(input$restoreFile$datapath, data_file, overwrite = TRUE)
+
+    # Reload after restore
+    restored <- load_data()
+    topics(restored$topics)
+    transactions(restored$transactions)
+  })
+
+  # ---- Generate Topic Report ----
   output$topicSelectReport <- renderUI({
     selectInput("topicReport", "Anlass:", choices = topics()$Anlass)
   })
 
   observeEvent(input$generateTopicReport, {
-    tmpfile <- "topic_report.pdf"
+    transactions_df <- transactions()
+    if (is.null(transactions_df)) {
+      transactions_df <- data.frame()
+    }
+
+    tmp_rds <- tempfile(fileext = ".rds")
+    saveRDS(transactions_df, tmp_rds)
+
+    tmp_dir <- tempdir()
+    out_name <- paste0("topic_report_", Sys.Date(), ".pdf")
 
     quarto::quarto_render(
       input = "topic_report.qmd",
-      output_file = tmpfile,
+      output_file = out_name,
+      # output_dir = tmp_dir,
       execute_params = list(
         topic = input$topicReport,
-        transactions = transactions()
+        transactions_rds = tmp_rds
       )
     )
 
-    browseURL(tmpfile)
+    # browseURL(file.path(tmp_dir, out_name))
+    # unlink(tmp_rds)
   })
 
-  # # ---- Generate Account Statement ----
+  # ---- Generate Account Statement ----
 
   # output$accountSelectReport <- renderUI({
   #   selectInput("accountReport", "Konto:", choices = accounts()$Konto)
@@ -206,6 +239,8 @@ server <- function(input, output, session) {
     topics(df)
     save_data()
   })
+
+  # ---- Topic Summary ----
 
   topicSummary <- reactive({
     if (nrow(topics()) == 0) {
@@ -314,6 +349,7 @@ server <- function(input, output, session) {
     save_data()
   })
 
+  # ---- Account Summary----
   accountSummary <- reactive({
     if (nrow(accounts()) == 0) {
       return(NULL)
@@ -334,7 +370,10 @@ server <- function(input, output, session) {
     result
   })
 
-  output$accountList <- renderDT(accountSummary(), options = list(dom = 't'))
+  output$accountList <- renderDT(
+    accountSummary(),
+    options = list(dom = 't')
+  )
 
   # Topic select for transactions
   output$topicSelect <- renderUI({
@@ -393,27 +432,6 @@ server <- function(input, output, session) {
   })
 
   output$transTable <- renderDT(transactions())
-
-  # ---- Backup data ----
-  output$backupData <- downloadHandler(
-    filename = function() {
-      paste0("backup_", Sys.Date(), ".xlsx")
-    },
-    content = function(file) {
-      file.copy(data_file, file, overwrite = TRUE)
-    }
-  )
-
-  # ---- Restore data ----
-  observeEvent(input$restoreFile, {
-    req(input$restoreFile)
-    file.copy(input$restoreFile$datapath, data_file, overwrite = TRUE)
-
-    # Reload after restore
-    restored <- load_data()
-    topics(restored$topics)
-    transactions(restored$transactions)
-  })
 
   # ---- Reset all data ----
   observeEvent(input$resetData, {

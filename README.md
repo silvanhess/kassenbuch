@@ -9,8 +9,7 @@ Features:
 
 
 to dos:
-- Datum, Konto und Anlass bearbeiten
-- Anlassabrechnung erstellen muss noch geflickt werden. Die Transaktionen werden nicht als Dataframe übergeben.
-- Anlassabrechnung ohne "Alle Anlässe" machen.
-- Kontoauszug nochmals neu erstellen.
-- Publizieren auf shinyapps.io
+- Feature: Datum, Konto und Anlass bearbeiten in Buchungen
+- Feature: Kontoauszug nochmals neu erstellen.
+- Bug: Anlassabrechnung erstellen muss noch geflickt werden. Die Transaktionen werden nicht als Dataframe übergeben.
+- Bug: Konten werden in der deployd version nicht angezeigt

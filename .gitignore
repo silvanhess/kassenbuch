@@ -4,3 +4,5 @@
 .Ruserdata
 *.xlsx
 .posit/
+rsconnect/
+deployment.R

@@ -1,20 +1,49 @@
 ---
 title: "Themenbericht"
 format: pdf
+execute:
+  echo: false
+  warning: false
+  message: false
 params:
-  topic: "All Topics"
-  transactions: !expr data.frame()
+  topic: ""
+  transactions_rds: ""
 ---
 
 ```{r}
+#| label: debug-chunk
+
+print(str(params$transactions_rds))
+```
+
+```{r}
+#| label: prepare data
+
 library(dplyr)
 library(knitr)
 
-# Filter by topic
-df <- params$transactions
-if (params$topic != "Alle Themen") {
-  df <- df %>% filter(Anlass == params$topic)
+if (!is.null(params$transactions_rds) && nzchar(params$transactions_rds)) {
+  df <- readRDS(params$transactions_rds)
+} else {
+  df <- data.frame(
+    Datum = as.Date(character()),
+    Bemerkung = character(),
+    Betrag = numeric(),
+    Konto = character(),
+    Anlass = character(),
+    stringsAsFactors = FALSE)
 }
+
+# make sure it is a data frame
+df <- as.data.frame(df)
+
+# check structure of df
+print(str(df))
+print(class(df))
+
+# Filter by topic
+df <- params$transactions %>%
+  filter(Anlass == params$topic)
 
 # Split Einnahmen/Ausgaben
 income <- df %>% filter(Betrag > 0)
