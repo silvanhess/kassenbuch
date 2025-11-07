@@ -1,5 +1,4 @@
 ---
-title: "Themenbericht"
 format: pdf
 execute:
   echo: false
@@ -11,12 +10,6 @@ params:
 ---
 
 ```{r}
-#| label: debug-chunk
-
-print(str(params$transactions_rds))
-```
-
-```{r}
 #| label: prepare data
 
 library(dplyr)
@@ -24,6 +17,7 @@ library(knitr)
 
 if (!is.null(params$transactions_rds) && nzchar(params$transactions_rds)) {
   df <- readRDS(params$transactions_rds)
+  # df <- init_data$transactions
 } else {
   df <- data.frame(
     Datum = as.Date(character()),
@@ -34,24 +28,36 @@ if (!is.null(params$transactions_rds) && nzchar(params$transactions_rds)) {
     stringsAsFactors = FALSE)
 }
 
-# make sure it is a data frame
-df <- as.data.frame(df)
-
-# check structure of df
-print(str(df))
-print(class(df))
-
 # Filter by topic
-df <- params$transactions %>%
-  filter(Anlass == params$topic)
+df <- df |> 
+  filter(Anlass == params$topic) |> 
+  mutate(
+    Typ = ifelse(Betrag > 0, "income", "expenses")
+  )
+# df <- df |> 
+#   filter(Anlass == "Kilbi 25") |> 
+#   mutate(
+#     Typ = ifelse(Betrag > 0, "income", "expenses")
+#   )
 
-# Split Einnahmen/Ausgaben
-income <- df %>% filter(Betrag > 0)
-expenses <- df %>% filter(Betrag < 0)
+income <- df |> filter(Typ == "income")
+expences <- df |> filter(Typ == "expences")
 
-total_income <- sum(income$Betrag, na.rm = TRUE)
-total_expenses <- sum(abs(expenses$Betrag), na.rm = TRUE)
-profit <- total_income - total_expenses
+total_income <- tibble(
+  Typ = "Total Einnahmen",
+  Betrag = sum(income$Betrag, na.rm = TRUE)
+)
+
+total_expenses <- tibble(
+  Typ = "Total Ausgaben",
+  Betrag = sum(expences$Betrag, na.rm = TRUE)
+)
+
+total <- tibble(
+  Typ = ifelse(total_income$Betrag > total_expenses$Betrag, "Gewinn", "Verlust"),
+  Betrag = sum(df$Betrag, na.rm = TRUE)
+)
+
 ```
 
 # Abrechnung `{r} params$topic` 
@@ -59,27 +65,40 @@ profit <- total_income - total_expenses
 ## Einnahmen
 
 ```{r}
+#| label: Einnahmen
+
 if (nrow(income) > 0) {
-  kable(income %>% select(Datum, Bemerkung, Betrag), align = "l l r", caption = "Einnahmen")
-} else {
-  cat("Keine Einnahmen gefunden.\n")
+df |> 
+  filter(Typ == "income") |> 
+  select(Datum, Bemerkung, Betrag) |> 
+  kable()
 }
+
 ```
 
 ## Ausgaben
 
 ```{r}
-if (nrow(expenses) > 0) {
-  kable(expenses %>% select(Datum, Bemerkung, Betrag), align = "l l r", caption = "Ausgaben")
-} else {
-  cat("Keine Ausgaben gefunden.\n")
+#| label: Ausgaben
+
+if (nrow(expences) > 0) {
+  df |> 
+  filter(Typ == "expences") |> 
+  select(Datum, Bemerkung, Betrag) |> 
+  kable()
 }
+
 ```
 
 ## Zusammenfassung
 
 ```{r}
-cat(sprintf("**Total Einnahmen:** %.2f €\n\n", total_income))
-cat(sprintf("**Total Ausgaben:** %.2f €\n\n", total_expenses))
-cat(sprintf("**Gewinn/Verlust:** %.2f €", profit))
+#| label: Zusammenfassung
+
+if (nrow(df) > 0) {
+total_income |> 
+  bind_rows(total_expenses, total) |> 
+  kable()
+}
+
 ```

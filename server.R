@@ -133,7 +133,7 @@ server <- function(input, output, session) {
     saveRDS(transactions_df, tmp_rds)
 
     tmp_dir <- tempdir()
-    out_name <- paste0("topic_report_", Sys.Date(), ".pdf")
+    out_name <- paste0("Abrechnung_", input$topicReport, ".pdf")
 
     quarto::quarto_render(
       input = "topic_report.qmd",
@@ -248,13 +248,13 @@ server <- function(input, output, session) {
     }
 
     # Summarise transactions per account
-    trans_summary <- transactions() %>%
-      group_by(Anlass) %>%
+    trans_summary <- transactions() |>
+      group_by(Anlass) |>
       summarise("Gewinn/Verlust" = sum(Betrag), .groups = "drop")
 
     # Join with accounts list (to show even empty accounts)
-    result <- topics() %>%
-      left_join(trans_summary, by = c("Anlass" = "Anlass")) %>%
+    result <- topics() |>
+      left_join(trans_summary, by = c("Anlass" = "Anlass")) |>
       mutate(
         `Gewinn/Verlust` = replace_na(`Gewinn/Verlust`, 0)
       )
@@ -356,13 +356,13 @@ server <- function(input, output, session) {
     }
 
     # Summarise transactions per account
-    trans_summary <- transactions() %>%
-      group_by(Konto) %>%
+    trans_summary <- transactions() |>
+      group_by(Konto) |>
       summarise(Saldo = sum(Betrag), .groups = "drop")
 
     # Join with accounts list (to show even empty accounts)
-    result <- accounts() %>%
-      left_join(trans_summary, by = c("Konto" = "Konto")) %>%
+    result <- accounts() |>
+      left_join(trans_summary, by = c("Konto" = "Konto")) |>
       mutate(
         Saldo = replace_na(Saldo, 0)
       )
