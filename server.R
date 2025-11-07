@@ -115,6 +115,7 @@ server <- function(input, output, session) {
     # Reload after restore
     restored <- load_data()
     topics(restored$topics)
+    accounts(restored$accounts)
     transactions(restored$transactions)
   })
 
@@ -249,7 +250,6 @@ server <- function(input, output, session) {
   })
 
   # ---- Topic Summary ----
-
   topicSummary <- reactive({
     if (nrow(topics()) == 0) {
       return(NULL)
@@ -281,7 +281,6 @@ server <- function(input, output, session) {
       already_exists <- input$newAccount %in% accounts()$Konto
 
       if (!already_exists) {
-        # add account
         newdf <- rbind(
           accounts(),
           tibble(Konto = input$newAccount)
@@ -360,7 +359,7 @@ server <- function(input, output, session) {
   # ---- Account Summary----
   accountSummary <- reactive({
     if (nrow(accounts()) == 0) {
-      return(NULL)
+      return(tibble(Konto = character(), Saldo = numeric()))
     }
 
     # Summarise transactions per account
@@ -368,7 +367,6 @@ server <- function(input, output, session) {
       group_by(Konto) |>
       summarise(Saldo = sum(Betrag), .groups = "drop")
 
-    # Join with accounts list (to show even empty accounts)
     result <- accounts() |>
       left_join(trans_summary, by = c("Konto" = "Konto")) |>
       mutate(
