@@ -17,14 +17,12 @@ ui <-
         ),
         h4("Anlassabrechnung"),
         uiOutput("topicSelectReport"),
-        actionButton("generateTopicReport", "Anlassabrechnung erstellen")
-        # br(),
-        # br(),
-        # h4("Kontoauszug"),
-        # uiOutput("accountSelectReport"),
-        # dateInput("startDate", "Startdatum", Sys.Date() - 30),
-        # dateInput("endDate", "Enddatum", Sys.Date()),
-        # actionButton("generateAccountReport", "Kontoauszug erstellen")
+        actionButton("generateTopicReport", "Anlassabrechnung erstellen"),
+        h4("Kontoauszug"),
+        uiOutput("accountSelectReport"),
+        dateInput("startDate", "Startdatum", Sys.Date() - 30),
+        dateInput("endDate", "Enddatum", Sys.Date()),
+        actionButton("generateAccountReport", "Kontoauszug erstellen")
       ),
 
       # ---- Topics ----

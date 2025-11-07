@@ -138,39 +138,47 @@ server <- function(input, output, session) {
     quarto::quarto_render(
       input = "topic_report.qmd",
       output_file = out_name,
-      # output_dir = tmp_dir,
       execute_params = list(
         topic = input$topicReport,
         transactions_rds = tmp_rds
       )
     )
 
-    # browseURL(file.path(tmp_dir, out_name))
-    # unlink(tmp_rds)
+    unlink(tmp_rds)
   })
 
   # ---- Generate Account Statement ----
 
-  # output$accountSelectReport <- renderUI({
-  #   selectInput("accountReport", "Konto:", choices = accounts()$Konto)
-  # })
+  output$accountSelectReport <- renderUI({
+    selectInput("accountReport", "Konto:", choices = accounts()$Konto)
+  })
 
-  # observeEvent(input$generateAccountReport, {
-  #   tmpfile <- "account_statement.pdf"
+  observeEvent(input$generateAccountReport, {
+    transactions_df <- transactions()
+    if (is.null(transactions_df)) {
+      transactions_df <- data.frame()
+    }
 
-  #   quarto::quarto_render(
-  #     input = "account_statement.qmd",
-  #     output_file = tmpfile,
-  #     execute_params = list(
-  #       account = input$accountReport,
-  #       startDate = input$startDate,
-  #       endDate = input$endDate,
-  #       transactions = transactions()
-  #     )
-  #   )
+    tmp_rds <- tempfile(fileext = ".rds")
+    saveRDS(transactions_df, tmp_rds)
 
-  #   browseURL(tmpfile)
-  # })
+    tmp_dir <- tempdir()
+    out_name <- paste0("Kontoauszug_", input$accountReport, ".pdf")
+
+    quarto::quarto_render(
+      input = "account_statement.qmd",
+      output_file = out_name,
+      execute_params = list(
+        account = input$accountReport,
+        startDate = input$startDate,
+        endDate = input$endDate,
+        transactions_rds = tmp_rds
+      )
+    )
+
+    # browseURL(tmpfile)
+    unlink(tmp_rds)
+  })
 
   # ---- Manage Topics ----
   observeEvent(input$addTopic, {
@@ -375,6 +383,7 @@ server <- function(input, output, session) {
     options = list(dom = 't')
   )
 
+  # ---- Add Transaction ----
   # Topic select for transactions
   output$topicSelect <- renderUI({
     selectInput("topic", "Anlass:", choices = topics()$Anlass)
@@ -385,7 +394,6 @@ server <- function(input, output, session) {
     selectInput("account", "Konto:", choices = accounts()$Konto)
   })
 
-  # ---- Add Transaction ----
   observeEvent(input$addTrans, {
     if (!is.null(input$topic) && !is.null(input$account) && input$amount != 0) {
       newdf <- rbind(

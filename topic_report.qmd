@@ -15,25 +15,13 @@ params:
 library(dplyr)
 library(knitr)
 
-if (!is.null(params$transactions_rds) && nzchar(params$transactions_rds)) {
-  df <- readRDS(params$transactions_rds)
-  # df <- init_data$transactions
-} else {
-  df <- data.frame(
-    Datum = as.Date(character()),
-    Bemerkung = character(),
-    Betrag = numeric(),
-    Konto = character(),
-    Anlass = character(),
-    stringsAsFactors = FALSE)
-}
+df <- readRDS(params$transactions_rds)
+# df <- init_data$transactions
 
 # Filter by topic
 df <- df |> 
   filter(Anlass == params$topic) |> 
-  mutate(
-    Typ = ifelse(Betrag > 0, "income", "expenses")
-  )
+  mutate(Typ = ifelse(Betrag > 0, "income", "expenses"))
 # df <- df |> 
 #   filter(Anlass == "Kilbi 25") |> 
 #   mutate(
@@ -53,7 +41,7 @@ total_expenses <- tibble(
   Betrag = sum(expences$Betrag, na.rm = TRUE)
 )
 
-total <- tibble(
+result <- tibble(
   Typ = ifelse(total_income$Betrag > total_expenses$Betrag, "Gewinn", "Verlust"),
   Betrag = sum(df$Betrag, na.rm = TRUE)
 )
@@ -68,10 +56,10 @@ total <- tibble(
 #| label: Einnahmen
 
 if (nrow(income) > 0) {
-df |> 
-  filter(Typ == "income") |> 
-  select(Datum, Bemerkung, Betrag) |> 
-  kable()
+  df |> 
+    filter(Typ == "income") |> 
+    select(Datum, Bemerkung, Betrag) |> 
+    kable()
 }
 
 ```
@@ -83,9 +71,9 @@ df |>
 
 if (nrow(expences) > 0) {
   df |> 
-  filter(Typ == "expences") |> 
-  select(Datum, Bemerkung, Betrag) |> 
-  kable()
+    filter(Typ == "expences") |> 
+    select(Datum, Bemerkung, Betrag) |> 
+    kable()
 }
 
 ```
@@ -96,9 +84,9 @@ if (nrow(expences) > 0) {
 #| label: Zusammenfassung
 
 if (nrow(df) > 0) {
-total_income |> 
-  bind_rows(total_expenses, total) |> 
-  kable()
+  total_income |> 
+    bind_rows(total_expenses, result) |> 
+    kable()
 }
 
 ```

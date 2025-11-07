@@ -1,0 +1,79 @@
+---
+format: pdf
+execute:
+  echo: false
+  warning: false
+  message: false
+params:
+  account: "Main Account"
+  transactions_rds: ""
+  startDate: !expr (Sys.Date() - 30)
+  endDate: !expr (Sys.Date())
+---
+
+```{r}
+#| label: prepare data
+
+library(dplyr)
+library(knitr)
+
+df <- readRDS(params$transactions_rds)
+# df <- readRDS("transactions.rds")
+
+df <- df |> 
+  filter(
+    Konto == params$account,
+    Datum >= params$startDate,
+    Datum <= params$endDate
+  ) |> 
+  mutate(
+    Einnahmen = ifelse(Betrag > 0, Betrag, NA),
+    Ausgaben = ifelse(Betrag < 0, abs(Betrag), NA)
+  )
+
+income <- df |> filter(Einnahmen != NA)
+expences <- df |> filter(Ausgaben != NA)
+
+total_income <- tibble(
+  Typ = "Total Einnahmen",
+  Betrag = sum(income$Betrag, na.rm = TRUE)
+)
+
+total_expenses <- tibble(
+  Typ = "Total Ausgaben",
+  Betrag = sum(expences$Betrag, na.rm = TRUE)
+)
+
+balance <- tibble(
+  Typ = "Kontostand",
+  Betrag = sum(df$Betrag, na.rm = TRUE)
+)
+```
+
+# Kontoauszug: `{r} params$account`
+### Zeitraum: `{r} as.Date(params$startDate)` – `{r} as.Date(params$endDate)`
+
+## Buchungen
+
+```{r}
+#| label: bookings
+
+if (nrow(df) > 0) {
+  df |> 
+    select(Datum, Bemerkung, Betrag) |> 
+    kable()
+}
+```
+
+## Zusammenfassung
+
+```{r}
+#| label: summary
+
+if (nrow(df) > 0) {
+  total_income |> 
+    bind_rows(total_expenses, balance) |> 
+    kable()
+}
+
+```
