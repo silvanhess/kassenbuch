@@ -18,11 +18,13 @@ ui <-
         h4("Anlassabrechnung"),
         uiOutput("topicSelectReport"),
         actionButton("generateTopicReport", "Anlassabrechnung erstellen"),
+        downloadButton("downloadTopicReport", "Anlassabrechnung herunterladen"),
         h4("Kontoauszug"),
         uiOutput("accountSelectReport"),
         dateInput("startDate", "Startdatum", Sys.Date() - 30),
         dateInput("endDate", "Enddatum", Sys.Date()),
-        actionButton("generateAccountReport", "Kontoauszug erstellen")
+        actionButton("generateAccountReport", "Kontoauszug erstellen"),
+        downloadButton("downloadAccountReport", "Kontoauszug herunterladen")
       ),
 
       # ---- Topics ----
@@ -36,7 +38,7 @@ ui <-
         actionButton("deleteTopic", "Ausgewählten Anlass löschen"),
         br(),
         textInput("editTopicName", "Neuen Namen eingeben"),
-        actionButton("editTopic", "Anlass umbenennen")
+        actionButton("renameTopic", "Anlass umbenennen")
       ),
 
       # ---- Accounts ----
@@ -51,7 +53,7 @@ ui <-
         actionButton("deleteAccount", "Ausgewähltes Konto löschen"),
         br(),
         textInput("editAccountName", "Neuen Kontonamen eingeben"),
-        actionButton("editAccount", "Konto umbenennen")
+        actionButton("renameAccount", "Konto umbenennen")
       ),
 
       # ---- Transactions ----
@@ -68,9 +70,12 @@ ui <-
         DTOutput("transTable"),
         actionButton("deleteTrans", "Ausgewählte Buchung löschen"),
         br(),
+        dateInput("editDate", "Datum ändern:"),
+        numericInput("editAmount", "Betrag bearbeiten", value = 0),
         textInput("editNote", "Bemerkung bearbeiten"),
-        numericInput("editAmount", "Betrag bearbeiten", 0),
-        actionButton("editTrans", "Buchung aktualisieren")
+        uiOutput("editAccountSelect"),
+        uiOutput("editTopicSelect"),
+        actionButton("editTrans", "Änderungen speichern", class = "btn-warning")
       ),
 
       # ---- Einstellungen ----

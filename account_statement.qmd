@@ -25,33 +25,21 @@ df <- df |>
     Konto == params$account,
     Datum >= params$startDate,
     Datum <= params$endDate
-  ) |> 
-  mutate(
-    Einnahmen = ifelse(Betrag > 0, Betrag, NA),
-    Ausgaben = ifelse(Betrag < 0, abs(Betrag), NA)
   )
 
-income <- df |> filter(Einnahmen != NA)
-expences <- df |> filter(Ausgaben != NA)
-
-total_income <- tibble(
-  Typ = "Total Einnahmen",
-  Betrag = sum(income$Betrag, na.rm = TRUE)
+start_balance <- tibble(
+  Typ = "Anfangs-Kontostand",
+  Betrag = df |> filter(Datum == min(Datum)) |> pull(Betrag)
 )
 
-total_expenses <- tibble(
-  Typ = "Total Ausgaben",
-  Betrag = sum(expences$Betrag, na.rm = TRUE)
-)
-
-balance <- tibble(
-  Typ = "Kontostand",
+end_balance <- tibble(
+  Typ = "End-Kontostand",
   Betrag = sum(df$Betrag, na.rm = TRUE)
 )
 ```
 
 # Kontoauszug: `{r} params$account`
-### Zeitraum: `{r} as.Date(params$startDate)` – `{r} as.Date(params$endDate)`
+### Zeitraum: `{r} format(as.Date(params$startDate), "%d.%m.%Y")` – `{r} format(as.Date(params$endDate), "%d.%m.%Y")`
 
 ## Buchungen
 
@@ -71,8 +59,8 @@ if (nrow(df) > 0) {
 #| label: summary
 
 if (nrow(df) > 0) {
-  total_income |> 
-    bind_rows(total_expenses, balance) |> 
+  start_balance |> 
+    bind_rows(end_balance) |> 
     kable()
 }
 

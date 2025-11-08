@@ -124,6 +124,8 @@ server <- function(input, output, session) {
     selectInput("topicReport", "Anlass:", choices = topics()$Anlass)
   })
 
+  report_file <- reactiveVal(NULL)
+
   observeEvent(input$generateTopicReport, {
     transactions_df <- transactions()
     if (is.null(transactions_df)) {
@@ -133,8 +135,8 @@ server <- function(input, output, session) {
     tmp_rds <- tempfile(fileext = ".rds")
     saveRDS(transactions_df, tmp_rds)
 
-    tmp_dir <- tempdir()
     out_name <- paste0("Abrechnung_", input$topicReport, ".pdf")
+    # out_path <- file.path(tempdir(), out_name)
 
     quarto::quarto_render(
       input = "topic_report.qmd",
@@ -145,14 +147,27 @@ server <- function(input, output, session) {
       )
     )
 
+    report_file(out_name)
     unlink(tmp_rds)
   })
 
-  # ---- Generate Account Statement ----
+  # Serve the report file for download
+  output$downloadTopicReport <- downloadHandler(
+    filename = function() {
+      paste0("Abrechnung_", input$topicReport, ".pdf")
+    },
+    content = function(file) {
+      req(report_file())
+      file.copy(report_file(), file)
+    }
+  )
 
+  # ---- Generate Account Statement ----
   output$accountSelectReport <- renderUI({
     selectInput("accountReport", "Konto:", choices = accounts()$Konto)
   })
+
+  report_file <- reactiveVal(NULL)
 
   observeEvent(input$generateAccountReport, {
     transactions_df <- transactions()
@@ -163,7 +178,6 @@ server <- function(input, output, session) {
     tmp_rds <- tempfile(fileext = ".rds")
     saveRDS(transactions_df, tmp_rds)
 
-    tmp_dir <- tempdir()
     out_name <- paste0("Kontoauszug_", input$accountReport, ".pdf")
 
     quarto::quarto_render(
@@ -177,9 +191,20 @@ server <- function(input, output, session) {
       )
     )
 
-    # browseURL(tmpfile)
+    report_file(out_name)
     unlink(tmp_rds)
   })
+
+  # Serve the report file for download
+  output$downloadAccountReport <- downloadHandler(
+    filename = function() {
+      paste0("Kontoauszug_", input$accountReport, ".pdf")
+    },
+    content = function(file) {
+      req(report_file())
+      file.copy(report_file(), file)
+    }
+  )
 
   # ---- Manage Topics ----
   observeEvent(input$addTopic, {
@@ -239,7 +264,7 @@ server <- function(input, output, session) {
   })
 
   # ---- Edit Topic ----
-  observeEvent(input$editTopic, {
+  observeEvent(input$renameTopic, {
     sel <- input$topicList_rows_selected
     req(sel, input$editTopicName)
 
@@ -346,7 +371,7 @@ server <- function(input, output, session) {
   })
 
   # ---- Edit Account ----
-  observeEvent(input$editAccount, {
+  observeEvent(input$renameAccount, {
     sel <- input$accountList_rows_selected
     req(sel, input$editAccountName)
 
@@ -382,12 +407,10 @@ server <- function(input, output, session) {
   )
 
   # ---- Add Transaction ----
-  # Topic select for transactions
   output$topicSelect <- renderUI({
     selectInput("topic", "Anlass:", choices = topics()$Anlass)
   })
 
-  # Account select for transactions
   output$accountSelect <- renderUI({
     selectInput("account", "Konto:", choices = accounts()$Konto)
   })
@@ -419,22 +442,44 @@ server <- function(input, output, session) {
   })
 
   # ---- Edit Transaction ----
+  output$editAccountSelect <- renderUI({
+    selectInput("editAccount", "Neues Konto:", choices = accounts()$Konto)
+  })
+
+  output$editTopicSelect <- renderUI({
+    selectInput("editTopic", "Neuer Anlass:", choices = topics()$Anlass)
+  })
+
   observeEvent(input$editTrans, {
     sel <- input$transTable_rows_selected
     req(sel)
 
     df <- transactions()
 
-    # Only edit note and amount (could be extended to Konto/Anlass)
-    if (input$editNote != "") {
+    # ---- Update editable fields safely ----
+    if (!is.null(input$editDate) && !is.na(input$editDate)) {
+      df$Datum[sel] <- as.Date(input$editDate)
+    }
+    if (!is.null(input$editAmount) && input$editAmount != 0) {
+      df$Betrag[sel] <- input$editAmount
+    }
+    if (!is.null(input$editNote) && input$editNote != "") {
       df$Bemerkung[sel] <- input$editNote
     }
-    if (input$editAmount != 0) {
-      df$Betrag[sel] <- input$editAmount
+    if (!is.null(input$editAccount) && input$editAccount != "") {
+      df$Konto[sel] <- input$editAccount
+    }
+    if (!is.null(input$editTopic) && input$editTopic != "") {
+      df$Anlass[sel] <- input$editTopic
     }
 
     transactions(df)
     save_data()
+
+    showNotification(
+      paste("Buchung", sel, "wurde erfolgreich bearbeitet."),
+      type = "message"
+    )
   })
 
   output$transTable <- renderDT(transactions())
