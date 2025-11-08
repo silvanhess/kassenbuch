@@ -5,6 +5,7 @@ library(tidyr)
 library(lubridate)
 library(openxlsx)
 library(readxl)
+library(formattable)
 
 # Hauptdatei für Daten
 data_file <- "finance_data.xlsx"
@@ -43,6 +44,7 @@ server <- function(input, output, session) {
         trans_data <- data.frame(
           Datum = as_date(character()),
           Betrag = numeric(),
+          # Betrag = currency(numeric(), "Fr."),
           Bemerkung = character(),
           Konto = character(),
           Anlass = character()
@@ -60,6 +62,7 @@ server <- function(input, output, session) {
       trans_data <- data.frame(
         Datum = as_date(character()),
         Betrag = numeric(),
+        # Betrag = currency(numeric(), "Fr."),
         Bemerkung = character(),
         Konto = character(),
         Anlass = character(),
@@ -127,6 +130,13 @@ server <- function(input, output, session) {
   report_file <- reactiveVal(NULL)
 
   observeEvent(input$generateTopicReport, {
+    showModal(modalDialog(
+      title = "Bitte warten...",
+      "Abrechnung wird erstellt. Dies kann einige Sekunden dauern.",
+      easyClose = FALSE,
+      footer = NULL
+    ))
+
     transactions_df <- transactions()
     if (is.null(transactions_df)) {
       transactions_df <- data.frame()
@@ -149,6 +159,7 @@ server <- function(input, output, session) {
 
     report_file(out_name)
     unlink(tmp_rds)
+    removeModal()
   })
 
   # Serve the report file for download
@@ -170,6 +181,13 @@ server <- function(input, output, session) {
   report_file <- reactiveVal(NULL)
 
   observeEvent(input$generateAccountReport, {
+    showModal(modalDialog(
+      title = "Bitte warten...",
+      "Abrechnung wird erstellt. Dies kann einige Sekunden dauern.",
+      easyClose = FALSE,
+      footer = NULL
+    ))
+
     transactions_df <- transactions()
     if (is.null(transactions_df)) {
       transactions_df <- data.frame()
@@ -193,6 +211,7 @@ server <- function(input, output, session) {
 
     report_file(out_name)
     unlink(tmp_rds)
+    removeModal()
   })
 
   # Serve the report file for download
