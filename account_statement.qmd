@@ -16,6 +16,7 @@ params:
 
 library(dplyr)
 library(knitr)
+library(formattable)
 
 df <- readRDS(params$transactions_rds)
 # df <- readRDS("transactions.rds")
@@ -49,6 +50,10 @@ end_balance <- tibble(
 if (nrow(df) > 0) {
   df |> 
     select(Datum, Bemerkung, Betrag) |> 
+    arrange(Datum) |> 
+    mutate(Datum = format(Datum, "%d.%m.%Y"), 
+    Betrag = currency(Betrag, "Fr.")
+    ) |> 
     kable()
 }
 ```
@@ -61,6 +66,7 @@ if (nrow(df) > 0) {
 if (nrow(df) > 0) {
   start_balance |> 
     bind_rows(end_balance) |> 
+    mutate(Betrag = currency(Betrag, "Fr.")) |> 
     kable()
 }
 

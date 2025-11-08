@@ -82,8 +82,8 @@ server <- function(input, output, session) {
   accounts <- reactiveVal(init_data$accounts)
   transactions <- reactiveVal(init_data$transactions)
 
-  print(str(init_data$transactions))
-  print(class(init_data$transactions$Datum))
+  # print(str(init_data$transactions))
+  # print(class(init_data$transactions$Datum))
 
   # ---- Save everything back into Excel workbook ----
   save_data <- function() {
@@ -296,7 +296,7 @@ server <- function(input, output, session) {
   # ---- Topic Summary ----
   topicSummary <- reactive({
     if (nrow(topics()) == 0) {
-      return(NULL)
+      return(tibble(Anlass = character(), `Gewinn/Verlust` = numeric()))
     }
 
     # Summarise transactions per account
@@ -496,7 +496,7 @@ server <- function(input, output, session) {
     save_data()
 
     showNotification(
-      paste("Buchung", sel, "wurde erfolgreich bearbeitet."),
+      paste("Buchung wurde erfolgreich bearbeitet."),
       type = "message"
     )
   })

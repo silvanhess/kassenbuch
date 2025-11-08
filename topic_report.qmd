@@ -14,6 +14,7 @@ params:
 
 library(dplyr)
 library(knitr)
+library(formattable)
 
 df <- readRDS(params$transactions_rds)
 # df <- init_data$transactions
@@ -21,7 +22,7 @@ df <- readRDS(params$transactions_rds)
 # Filter by topic
 df <- df |> 
   filter(Anlass == params$topic) |> 
-  mutate(Typ = ifelse(Betrag > 0, "income", "expenses"))
+  mutate(Typ = ifelse(Betrag > 0, "income", "expences"))
 # df <- df |> 
 #   filter(Anlass == "Kilbi 25") |> 
 #   mutate(
@@ -59,6 +60,10 @@ if (nrow(income) > 0) {
   df |> 
     filter(Typ == "income") |> 
     select(Datum, Bemerkung, Betrag) |> 
+    arrange(Datum) |> 
+    mutate(Datum = format(Datum, "%d.%m.%Y"), 
+    Betrag = currency(Betrag, "Fr.")
+    ) |> 
     kable()
 }
 
@@ -73,6 +78,10 @@ if (nrow(expences) > 0) {
   df |> 
     filter(Typ == "expences") |> 
     select(Datum, Bemerkung, Betrag) |> 
+    arrange(Datum) |> 
+    mutate(Datum = format(Datum, "%d.%m.%Y"), 
+    Betrag = currency(Betrag, "Fr.")
+    ) |> 
     kable()
 }
 
@@ -86,6 +95,7 @@ if (nrow(expences) > 0) {
 if (nrow(df) > 0) {
   total_income |> 
     bind_rows(total_expenses, result) |> 
+    mutate(Betrag = currency(Betrag, "Fr.")) |> 
     kable()
 }
 
