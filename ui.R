@@ -3,7 +3,7 @@ library(DT)
 
 ui <-
   fluidPage(
-    titlePanel("Kassenbuch Jugend Ridu"),
+    titlePanel("Kassenbuch"),
     tabsetPanel(
       # ---- Übersicht ----
       tabPanel(

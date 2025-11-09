@@ -3,6 +3,8 @@
 .RData
 .Ruserdata
 *.xlsx
+*.rds
+*.pdf
 .posit/
 rsconnect/
 arc/
