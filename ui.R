@@ -8,7 +8,7 @@ ui <-
       # ---- Übersicht ----
       tabPanel(
         "Übersicht",
-        h3("Export / Sicherung"),
+        h4("Export / Sicherung"),
         downloadButton("backupData", "Daten sichern"),
         fileInput(
           "restoreFile",
