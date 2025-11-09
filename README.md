@@ -1,6 +1,8 @@
 # Kassenbuch
 
-App für Kassenführung à la "Milchbüechli", geeignet für private Projekte oder kleine Vereine.
+App für Kassenführung à la "Milchbüechli", geeignet für private Projekte oder kleine Vereine
+
+https://kutskey-kassenbuch.share.connect.posit.cloud
 
 Features:
 - Anlassverwaltung
