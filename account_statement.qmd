@@ -55,33 +55,32 @@ endsaldo <- anfangssaldo + sum(period_df$Effektiv, na.rm = TRUE)
 
 ### Zeitraum: `{r} format(start_date, "%d.%m.%Y")` – `{r} format(end_date, "%d.%m.%Y")`
 
-## Buchungen
-
 ```{r}
 #| label: bookings
 
-if (nrow(period_df) > 0) {
-  period_df |>
-    select(Datum, Gegenkonto, Bemerkung, Effektiv) |>
-    arrange(Datum) |>
-    mutate(
-      Datum = format(Datum, "%d.%m.%Y"),
-      Effektiv = currency(Effektiv, "Fr.")
-    ) |>
-    rename(Betrag = Effektiv) |>
-    kable(booktabs = TRUE)
-}
-```
+row_anfang <- tibble(
+  Datum = "",
+  Gegenkonto = "",
+  Bemerkung = "Anfangssaldo",
+  Betrag = currency(anfangssaldo, "Fr.")
+)
 
-## Zusammenfassung
+row_end <- tibble(
+  Datum = "",
+  Gegenkonto = "",
+  Bemerkung = "Endsaldo",
+  Betrag = currency(endsaldo, "Fr.")
+)
 
-```{r}
-#| label: summary
+rows_period <- period_df |>
+  select(Datum, Gegenkonto, Bemerkung, Effektiv) |>
+  arrange(Datum) |>
+  mutate(
+    Datum = format(Datum, "%d.%m.%Y"),
+    Effektiv = currency(Effektiv, "Fr.")
+  ) |>
+  rename(Betrag = Effektiv)
 
-tibble(
-  Typ = c("Anfangssaldo", "Endsaldo"),
-  Betrag = c(anfangssaldo, endsaldo)
-) |>
-  mutate(Betrag = currency(Betrag, "Fr.")) |>
-  kable()
+bind_rows(row_anfang, rows_period, row_end) |>
+  kable(booktabs = TRUE)
 ```
