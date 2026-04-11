@@ -14,7 +14,6 @@ params:
 
 library(dplyr)
 library(knitr)
-library(kableExtra)
 library(formattable)
 
 df <- readRDS(params$transactions_rds)
@@ -63,7 +62,7 @@ if (nrow(income) > 0) {
       Effektiv = currency(Effektiv, "Fr.")
     ) |>
     rename(Betrag = Effektiv) |>
-    kable(booktabs = TRUE) |> kable_styling(full_width = TRUE)
+    kable(booktabs = TRUE)
 }
 ```
 
@@ -81,7 +80,7 @@ if (nrow(expenses) > 0) {
       Effektiv = currency(Effektiv, "Fr.")
     ) |>
     rename(Betrag = Effektiv) |>
-    kable(booktabs = TRUE) |> kable_styling(full_width = TRUE)
+    kable(booktabs = TRUE)
 }
 ```
 
@@ -93,6 +92,6 @@ if (nrow(expenses) > 0) {
 if (nrow(df) > 0) {
   summary_df |>
     mutate(Betrag = currency(Betrag, "Fr.")) |>
-    kable(booktabs = TRUE) |> kable_styling(full_width = TRUE)
+    kable(booktabs = TRUE)
 }
 ```
