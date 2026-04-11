@@ -34,15 +34,19 @@ all_df <- all_df |>
     Gegenkonto = ifelse(Sollkonto == params$account, Habenkonto, Sollkonto)
   )
 
-# Anfangssaldo = sum of all transactions strictly before the period
-anfangssaldo <- all_df |>
-  filter(Datum < start_date) |>
-  summarise(s = sum(Effektiv, na.rm = TRUE)) |>
-  pull(s)
-anfangssaldo <- ifelse(length(anfangssaldo) == 0 || is.na(anfangssaldo), 0, anfangssaldo)
+# Initialbuchung: Gegenkonto == "Anfangssaldo" — separat behandeln, nicht anzeigen
+initialbuchung <- all_df |> filter(Gegenkonto == "Anfangssaldo")
+regular_df     <- all_df |> filter(Gegenkonto != "Anfangssaldo")
 
-# Transactions within period
-period_df <- all_df |>
+# Anfangssaldo = Betrag der Initialbuchung + reguläre Buchungen vor dem Startdatum
+init_betrag <- sum(initialbuchung$Effektiv, na.rm = TRUE)
+anfangssaldo <- init_betrag + sum(
+  regular_df |> filter(Datum < start_date) |> pull(Effektiv),
+  na.rm = TRUE
+)
+
+# Nur reguläre Buchungen im Zeitraum anzeigen
+period_df <- regular_df |>
   filter(Datum >= start_date, Datum <= end_date)
 
 endsaldo <- anfangssaldo + sum(period_df$Effektiv, na.rm = TRUE)
