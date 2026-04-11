@@ -266,7 +266,10 @@ server <- function(input, output, session) {
       select(Anlass, `Gewinn/Verlust`)
   })
 
-  output$topicList <- renderDT(topicSummary(), options = list(dom = 't'))
+  output$topicList <- renderDT(
+    datatable(topicSummary(), options = list(dom = 't')) |>
+      formatRound(columns = "Gewinn/Verlust", digits = 2)
+  )
 
   # ---- Manage Accounts ----
   observeEvent(input$addAccount, {
@@ -371,7 +374,10 @@ server <- function(input, output, session) {
       select(Konto, Saldo)
   })
 
-  output$accountList <- renderDT(accountSummary(), options = list(dom = 't'))
+  output$accountList <- renderDT(
+    datatable(accountSummary(), options = list(dom = 't')) |>
+      formatRound(columns = "Saldo", digits = 2)
+  )
 
   # ---- Add Transaction ----
   output$sollkontoSelect <- renderUI({
@@ -443,7 +449,10 @@ server <- function(input, output, session) {
     showNotification("Buchung wurde erfolgreich bearbeitet.", type = "message")
   })
 
-  output$transTable <- renderDT(transactions())
+  output$transTable <- renderDT(
+    datatable(transactions()) |>
+      formatRound(columns = "Betrag", digits = 2)
+  )
 
   # ---- Reset all data ----
   observeEvent(input$resetData, {
