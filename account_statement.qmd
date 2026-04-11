@@ -18,43 +18,53 @@ library(dplyr)
 library(knitr)
 library(formattable)
 
-df <- readRDS(params$transactions_rds)
-# df <- readRDS("transactions.rds")
+all_df <- readRDS(params$transactions_rds)
 
-df <- df |> 
-  filter(
-    Konto == params$account,
-    Datum >= params$startDate,
-    Datum <= params$endDate
+start_date <- as.Date(params$startDate)
+end_date <- as.Date(params$endDate)
+
+# All transactions for this account with effective signed amount
+# Soll  = Zugang  (Aktivkonto nimmt zu) → positive
+# Haben = Abgang  (Aktivkonto nimmt ab) → negative
+all_df <- all_df |>
+  filter(Sollkonto == params$account | Habenkonto == params$account) |>
+  mutate(
+    Effektiv = ifelse(Sollkonto == params$account, Betrag, -Betrag),
+    Gegenkonto = ifelse(Sollkonto == params$account, Habenkonto, Sollkonto)
   )
 
-start_balance <- tibble(
-  Typ = "Anfangs-Kontostand",
-  Betrag = df |> filter(Datum == min(Datum)) |> pull(Betrag)
-)
+# Anfangssaldo = sum of all transactions strictly before the period
+anfangssaldo <- all_df |>
+  filter(Datum < start_date) |>
+  summarise(s = sum(Effektiv, na.rm = TRUE)) |>
+  pull(s)
+anfangssaldo <- ifelse(length(anfangssaldo) == 0 || is.na(anfangssaldo), 0, anfangssaldo)
 
-end_balance <- tibble(
-  Typ = "End-Kontostand",
-  Betrag = sum(df$Betrag, na.rm = TRUE)
-)
+# Transactions within period
+period_df <- all_df |>
+  filter(Datum >= start_date, Datum <= end_date)
+
+endsaldo <- anfangssaldo + sum(period_df$Effektiv, na.rm = TRUE)
 ```
 
 # Kontoauszug: `{r} params$account`
 
-### Zeitraum: `{r} format(as.Date(params$startDate), "%d.%m.%Y")` – `{r} format(as.Date(params$endDate), "%d.%m.%Y")`
+### Zeitraum: `{r} format(start_date, "%d.%m.%Y")` – `{r} format(end_date, "%d.%m.%Y")`
 
 ## Buchungen
 
 ```{r}
 #| label: bookings
 
-if (nrow(df) > 0) {
-  df |> 
-    select(Datum, Bemerkung, Betrag) |> 
-    arrange(Datum) |> 
-    mutate(Datum = format(Datum, "%d.%m.%Y"), 
-    Betrag = currency(Betrag, "Fr.")
-    ) |> 
+if (nrow(period_df) > 0) {
+  period_df |>
+    select(Datum, Gegenkonto, Bemerkung, Effektiv) |>
+    arrange(Datum) |>
+    mutate(
+      Datum = format(Datum, "%d.%m.%Y"),
+      Effektiv = currency(Effektiv, "Fr.")
+    ) |>
+    rename(Betrag = Effektiv) |>
     kable()
 }
 ```
@@ -64,11 +74,10 @@ if (nrow(df) > 0) {
 ```{r}
 #| label: summary
 
-if (nrow(df) > 0) {
-  start_balance |> 
-    bind_rows(end_balance) |> 
-    mutate(Betrag = currency(Betrag, "Fr.")) |> 
-    kable()
-}
-
+tibble(
+  Typ = c("Anfangssaldo", "Endsaldo"),
+  Betrag = c(anfangssaldo, endsaldo)
+) |>
+  mutate(Betrag = currency(Betrag, "Fr.")) |>
+  kable()
 ```
