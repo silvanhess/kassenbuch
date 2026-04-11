@@ -373,7 +373,7 @@ server <- function(input, output, session) {
         ),
         type = "error"
       )
-    } else if (last_acount) {
+    } else if (last_account) {
       showNotification(
         print("Es muss immer mindestens ein Konto vorhanden sein."),
         type = "error"
