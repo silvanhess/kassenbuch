@@ -59,10 +59,16 @@ ui <-
       # ---- Transactions ----
       tabPanel(
         "Buchungen verwalten",
-        uiOutput("topicSelect"),
-        uiOutput("accountSelect"),
+        helpText(
+          "Einnahmen: Erfolgskonto im Haben |",
+          "Ausgaben: Erfolgskonto im Soll |",
+          "Geldbezüge: Kassabestand im Soll |",
+          "Einzahlungen: Kassabestand im Haben"
+        ),
+        uiOutput("sollkontoSelect"),
+        uiOutput("habenkontoSelect"),
         dateInput("date", "Datum", Sys.Date()),
-        numericInput("amount", "Betrag", 0),
+        numericInput("amount", "Betrag", 0, min = 0),
         textInput("note", "Bemerkung"),
         actionButton("addTrans", "Buchung hinzufügen"),
         br(),
@@ -71,10 +77,10 @@ ui <-
         actionButton("deleteTrans", "Ausgewählte Buchung löschen"),
         br(),
         dateInput("editDate", "Datum ändern:"),
-        numericInput("editAmount", "Betrag bearbeiten", value = 0),
+        numericInput("editAmount", "Betrag bearbeiten", value = 0, min = 0),
         textInput("editNote", "Bemerkung bearbeiten"),
-        uiOutput("editAccountSelect"),
-        uiOutput("editTopicSelect"),
+        uiOutput("editSollkontoSelect"),
+        uiOutput("editHabenkontoSelect"),
         actionButton("editTrans", "Änderungen speichern", class = "btn-warning")
       ),
 

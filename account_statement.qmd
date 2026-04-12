@@ -18,57 +18,69 @@ library(dplyr)
 library(knitr)
 library(formattable)
 
-df <- readRDS(params$transactions_rds)
-# df <- readRDS("transactions.rds")
+all_df <- readRDS(params$transactions_rds)
 
-df <- df |> 
-  filter(
-    Konto == params$account,
-    Datum >= params$startDate,
-    Datum <= params$endDate
+start_date <- as.Date(params$startDate)
+end_date <- as.Date(params$endDate)
+
+# All transactions for this account with effective signed amount
+# Soll  = Zugang  (Aktivkonto nimmt zu) → positive
+# Haben = Abgang  (Aktivkonto nimmt ab) → negative
+all_df <- all_df |>
+  filter(Sollkonto == params$account | Habenkonto == params$account) |>
+  mutate(
+    Effektiv = ifelse(Sollkonto == params$account, Betrag, -Betrag),
+    Gegenkonto = ifelse(Sollkonto == params$account, Habenkonto, Sollkonto)
   )
 
-start_balance <- tibble(
-  Typ = "Anfangs-Kontostand",
-  Betrag = df |> filter(Datum == min(Datum)) |> pull(Betrag)
+# Initialbuchung: Gegenkonto == "Anfangssaldo" — separat behandeln, nicht anzeigen
+initialbuchung <- all_df |> filter(Gegenkonto == "Anfangssaldo")
+regular_df     <- all_df |> filter(Gegenkonto != "Anfangssaldo")
+
+# Anfangssaldo = Betrag der Initialbuchung + reguläre Buchungen vor dem Startdatum
+init_betrag <- sum(initialbuchung$Effektiv, na.rm = TRUE)
+anfangssaldo <- init_betrag + sum(
+  regular_df |> filter(Datum < start_date) |> pull(Effektiv),
+  na.rm = TRUE
 )
 
-end_balance <- tibble(
-  Typ = "End-Kontostand",
-  Betrag = sum(df$Betrag, na.rm = TRUE)
-)
+# Nur reguläre Buchungen im Zeitraum anzeigen
+period_df <- regular_df |>
+  filter(Datum >= start_date, Datum <= end_date)
+
+endsaldo <- anfangssaldo + sum(period_df$Effektiv, na.rm = TRUE)
 ```
 
 # Kontoauszug: `{r} params$account`
 
-### Zeitraum: `{r} format(as.Date(params$startDate), "%d.%m.%Y")` – `{r} format(as.Date(params$endDate), "%d.%m.%Y")`
-
-## Buchungen
+### Zeitraum: `{r} format(start_date, "%d.%m.%Y")` – `{r} format(end_date, "%d.%m.%Y")`
 
 ```{r}
 #| label: bookings
 
-if (nrow(df) > 0) {
-  df |> 
-    select(Datum, Bemerkung, Betrag) |> 
-    arrange(Datum) |> 
-    mutate(Datum = format(Datum, "%d.%m.%Y"), 
-    Betrag = currency(Betrag, "Fr.")
-    ) |> 
-    kable()
-}
-```
+row_anfang <- tibble(
+  Datum = "",
+  Gegenkonto = "",
+  Bemerkung = "Anfangssaldo",
+  Betrag = currency(anfangssaldo, "Fr.")
+)
 
-## Zusammenfassung
+row_end <- tibble(
+  Datum = "",
+  Gegenkonto = "",
+  Bemerkung = "Endsaldo",
+  Betrag = currency(endsaldo, "Fr.")
+)
 
-```{r}
-#| label: summary
+rows_period <- period_df |>
+  select(Datum, Gegenkonto, Bemerkung, Effektiv) |>
+  arrange(Datum) |>
+  mutate(
+    Datum = format(Datum, "%d.%m.%Y"),
+    Effektiv = currency(Effektiv, "Fr.")
+  ) |>
+  rename(Betrag = Effektiv)
 
-if (nrow(df) > 0) {
-  start_balance |> 
-    bind_rows(end_balance) |> 
-    mutate(Betrag = currency(Betrag, "Fr.")) |> 
-    kable()
-}
-
+bind_rows(row_anfang, rows_period, row_end) |>
+  kable(booktabs = TRUE)
 ```

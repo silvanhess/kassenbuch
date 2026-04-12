@@ -17,39 +17,36 @@ library(knitr)
 library(formattable)
 
 df <- readRDS(params$transactions_rds)
-# df <- init_data$transactions
 
-# Filter by topic
-df <- df |> 
-  filter(Anlass == params$topic) |> 
-  mutate(Typ = ifelse(Betrag > 0, "income", "expences"))
-# df <- df |> 
-#   filter(Anlass == "Kilbi 25") |> 
-#   mutate(
-#     Typ = ifelse(Betrag > 0, "income", "expenses")
-#   )
+# Filter transactions for this topic and compute effective amount
+# Haben = Ertrag (topic receives money)  → positive
+# Soll  = Aufwand (topic spends money)   → negative
+df <- df |>
+  filter(Sollkonto == params$topic | Habenkonto == params$topic) |>
+  mutate(
+    Effektiv = ifelse(Habenkonto == params$topic, Betrag, -Betrag),
+    Gegenkonto = ifelse(Habenkonto == params$topic, Sollkonto, Habenkonto),
+    Typ = ifelse(Habenkonto == params$topic, "Einnahme", "Ausgabe")
+  )
 
-income <- df |> filter(Typ == "income")
-expences <- df |> filter(Typ == "expences")
+income <- df |> filter(Typ == "Einnahme")
+expenses <- df |> filter(Typ == "Ausgabe")
 
-total_income <- tibble(
-  Typ = "Total Einnahmen",
-  Betrag = sum(income$Betrag, na.rm = TRUE)
+total_income <- sum(income$Effektiv, na.rm = TRUE)
+total_expenses <- abs(sum(expenses$Effektiv, na.rm = TRUE))
+result_val <- total_income - total_expenses
+
+summary_df <- tibble(
+  Typ = c(
+    "Total Einnahmen",
+    "Total Ausgaben",
+    ifelse(result_val >= 0, "Gewinn", "Verlust")
+  ),
+  Betrag = c(total_income, total_expenses, abs(result_val))
 )
-
-total_expenses <- tibble(
-  Typ = "Total Ausgaben",
-  Betrag = sum(expences$Betrag, na.rm = TRUE)
-)
-
-result <- tibble(
-  Typ = ifelse(total_income$Betrag > total_expenses$Betrag, "Gewinn", "Verlust"),
-  Betrag = sum(df$Betrag, na.rm = TRUE)
-)
-
 ```
 
-# Abrechnung `{r} params$topic` 
+# Abrechnung `{r} params$topic`
 
 ## Einnahmen
 
@@ -57,16 +54,16 @@ result <- tibble(
 #| label: Einnahmen
 
 if (nrow(income) > 0) {
-  df |> 
-    filter(Typ == "income") |> 
-    select(Datum, Bemerkung, Betrag) |> 
-    arrange(Datum) |> 
-    mutate(Datum = format(Datum, "%d.%m.%Y"), 
-    Betrag = currency(Betrag, "Fr.")
-    ) |> 
-    kable()
+  income |>
+    select(Datum, Gegenkonto, Bemerkung, Effektiv) |>
+    arrange(Datum) |>
+    mutate(
+      Datum = format(Datum, "%d.%m.%Y"),
+      Effektiv = currency(Effektiv, "Fr.")
+    ) |>
+    rename(Betrag = Effektiv) |>
+    kable(booktabs = TRUE)
 }
-
 ```
 
 ## Ausgaben
@@ -74,17 +71,17 @@ if (nrow(income) > 0) {
 ```{r}
 #| label: Ausgaben
 
-if (nrow(expences) > 0) {
-  df |> 
-    filter(Typ == "expences") |> 
-    select(Datum, Bemerkung, Betrag) |> 
-    arrange(Datum) |> 
-    mutate(Datum = format(Datum, "%d.%m.%Y"), 
-    Betrag = currency(Betrag, "Fr.")
-    ) |> 
-    kable()
+if (nrow(expenses) > 0) {
+  expenses |>
+    select(Datum, Gegenkonto, Bemerkung, Effektiv) |>
+    arrange(Datum) |>
+    mutate(
+      Datum = format(Datum, "%d.%m.%Y"),
+      Effektiv = currency(Effektiv, "Fr.")
+    ) |>
+    rename(Betrag = Effektiv) |>
+    kable(booktabs = TRUE)
 }
-
 ```
 
 ## Zusammenfassung
@@ -93,10 +90,8 @@ if (nrow(expences) > 0) {
 #| label: Zusammenfassung
 
 if (nrow(df) > 0) {
-  total_income |> 
-    bind_rows(total_expenses, result) |> 
-    mutate(Betrag = currency(Betrag, "Fr.")) |> 
-    kable()
+  summary_df |>
+    mutate(Betrag = currency(Betrag, "Fr.")) |>
+    kable(booktabs = TRUE)
 }
-
 ```
