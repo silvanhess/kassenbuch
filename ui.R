@@ -59,6 +59,12 @@ ui <-
       # ---- Transactions ----
       tabPanel(
         "Buchungen verwalten",
+        helpText(
+          "Einnahmen: Erfolgskonto im Haben |",
+          "Ausgaben: Erfolgskonto im Soll |",
+          "Geldbezüge: Kassabestand im Soll |",
+          "Einzahlungen: Kassabestand im Haben"
+        ),
         uiOutput("sollkontoSelect"),
         uiOutput("habenkontoSelect"),
         dateInput("date", "Datum", Sys.Date()),
